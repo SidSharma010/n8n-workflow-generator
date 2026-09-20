@@ -1,0 +1,118 @@
+{
+  "name": "Webhook to Slack Alert",
+  "nodes": [
+    {
+      "id": "1f6a2e10-0001-4a1a-9c1a-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "parameters": {
+        "path": "incoming-alert",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "1f6a2e10-0001-4a1a-9c1a-000000000002",
+      "name": "Check Severity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [220, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.severity }}",
+              "rightValue": "critical",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "1f6a2e10-0001-4a1a-9c1a-000000000003",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, -80],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "text",
+              "type": "string",
+              "value": "=:rotating_light: *Critical alert*: {{ $json.body.message }} (source: {{ $json.body.source }})"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "1f6a2e10-0001-4a1a-9c1a-000000000004",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [660, -80],
+      "parameters": {
+        "resource": "message",
+        "operation": "post",
+        "channel": "#alerts",
+        "text": "={{ $json.text }}"
+      }
+    },
+    {
+      "id": "1f6a2e10-0001-4a1a-9c1a-000000000005",
+      "name": "No Action Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [440, 80],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Check Severity", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Check Severity": {
+      "main": [
+        [
+          { "node": "Format Slack Message", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "No Action Needed", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          { "node": "Post to Slack", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "notes": "Import into n8n, then add your Slack credential to the 'Post to Slack' node before activating. The webhook path is a placeholder — change it if you want a non-guessable URL."
+  }
+}
+
