@@ -1,0 +1,145 @@
+{
+  "name": "Scheduled Invoice Reminder",
+  "nodes": [
+    {
+      "id": "2b7c3f20-0002-4b2b-9d2b-000000000001",
+      "name": "Every Morning 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2b7c3f20-0002-4b2b-9d2b-000000000002",
+      "name": "Get Unpaid Invoices",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [220, 0],
+      "parameters": {
+        "operation": "read",
+        "documentId": "REPLACE_WITH_YOUR_SHEET_ID",
+        "sheetName": "Invoices",
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "lookupValue": "unpaid"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2b7c3f20-0002-4b2b-9d2b-000000000003",
+      "name": "Filter Overdue Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": ""
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.due_date }}",
+              "rightValue": "={{ $now.toISODate() }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "before"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "2b7c3f20-0002-4b2b-9d2b-000000000004",
+      "name": "Draft Reminder Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [660, 0],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "subject",
+              "type": "string",
+              "value": "=Friendly reminder: invoice {{ $json.invoice_number }} is overdue"
+            },
+            {
+              "id": "b2",
+              "name": "body",
+              "type": "string",
+              "value": "=Hi {{ $json.client_name }},\n\nJust a quick nudge that invoice {{ $json.invoice_number }} for {{ $json.amount }} was due on {{ $json.due_date }}. Let me know if you need anything from my side to process it.\n\nThanks!"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "2b7c3f20-0002-4b2b-9d2b-000000000005",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [880, 0],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "to": "={{ $json.client_email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}"
+      }
+    }
+  ],
+  "connections": {
+    "Every Morning 9am": {
+      "main": [
+        [
+          { "node": "Get Unpaid Invoices", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Unpaid Invoices": {
+      "main": [
+        [
+          { "node": "Filter Overdue Only", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Filter Overdue Only": {
+      "main": [
+        [
+          { "node": "Draft Reminder Email", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Draft Reminder Email": {
+      "main": [
+        [
+          { "node": "Send Email", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "notes": "Replace REPLACE_WITH_YOUR_SHEET_ID with your actual Google Sheet ID, and add Google Sheets + Gmail credentials in n8n before activating. Assumes an 'Invoices' sheet with columns: invoice_number, client_name, client_email, amount, due_date, status."
+  }
+}
+
